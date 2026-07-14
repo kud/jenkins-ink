@@ -1,0 +1,59 @@
+{
+  "name": "@kud/jenkins-ink",
+  "version": "0.1.0",
+  "description": "Ink components for rendering Jenkins builds, jobs, stages and logs",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "ink": ">=7",
+    "react": ">=19"
+  },
+  "dependencies": {
+    "@kud/ink-ui": "0.6.0",
+    "@kud/jenkins": "1.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "@types/react": "19.2.17",
+    "ink": "7.1.0",
+    "ink-testing-library": "4.0.0",
+    "react": "19.2.7",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  },
+  "keywords": [
+    "jenkins",
+    "ink",
+    "cli",
+    "react",
+    "terminal",
+    "ci",
+    "components"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kud/jenkins-ink"
+  }
+}
