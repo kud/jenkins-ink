@@ -1,8 +1,8 @@
 import React from "react"
 import { Box, Text } from "ink"
 import { SelectableRow, colors } from "@kud/ink-ui"
-import { LogView } from "./LogView.js"
-import { windowSlice } from "./window.js"
+import { LogView } from "./log-view.js"
+import { windowSlice } from "../lib/window.js"
 
 // Jenkins wfapi node status → colour ("SUCCESS" / "FAILED" / "IN_PROGRESS" /
 // "ABORTED" / …). Kept local to the presentation layer; the wfapi shapes are

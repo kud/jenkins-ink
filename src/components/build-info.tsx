@@ -2,7 +2,7 @@ import React from "react"
 import { Text } from "ink"
 import { colors } from "@kud/ink-ui"
 import { buildStatusToken, fmtDuration, type JenkinsBuild } from "@kud/jenkins"
-import { statusColor } from "./status.js"
+import { statusColor } from "../lib/status.js"
 
 // One-line build metadata: "#num  STATE  dur  started-at". A null build renders
 // a muted placeholder, so callers can pass the current selection directly.

@@ -1,9 +1,9 @@
 import React from "react"
 import { test, expect } from "vitest"
 import { render } from "ink-testing-library"
-import { BuildList } from "./BuildList.js"
-import { JobList } from "./JobList.js"
-import { BuildInfo } from "./BuildInfo.js"
+import { BuildList } from "./build-list.js"
+import { JobList } from "./job-list.js"
+import { BuildInfo } from "./build-info.js"
 import type { JenkinsBuild, JenkinsJob } from "@kud/jenkins"
 
 const builds: JenkinsBuild[] = [

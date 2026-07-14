@@ -7,8 +7,8 @@ import {
   fmtAge,
   type JenkinsBuild,
 } from "@kud/jenkins"
-import { statusColor } from "./status.js"
-import { windowSlice } from "./window.js"
+import { statusColor } from "../lib/status.js"
+import { windowSlice } from "../lib/window.js"
 
 export type BuildListProps = {
   builds: JenkinsBuild[]

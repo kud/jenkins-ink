@@ -2,7 +2,7 @@ import React from "react"
 import { Box, Text } from "ink"
 import { SelectableRow, colors } from "@kud/ink-ui"
 import type { JenkinsJob } from "@kud/jenkins"
-import { windowSlice } from "./window.js"
+import { windowSlice } from "../lib/window.js"
 
 // A job's status dot from its Jenkins `color` (its last build's health):
 // blue = success, red = failure, yellow = unstable, *_anime = running now,

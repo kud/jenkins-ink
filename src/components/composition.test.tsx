@@ -2,7 +2,7 @@ import React from "react"
 import { test, expect } from "vitest"
 import { render } from "ink-testing-library"
 import { Box, Text } from "ink"
-import { BuildList } from "./BuildList.js"
+import { BuildList } from "./build-list.js"
 import type { JenkinsBuild } from "@kud/jenkins"
 
 // The composition proof: <BuildList> renders as ONE pane inside a larger layout,
