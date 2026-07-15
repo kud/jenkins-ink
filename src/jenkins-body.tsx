@@ -21,7 +21,8 @@ import {
   type LogAppendState,
   type LogLine,
 } from "./lib/log-format.js"
-import { Overlay, Panel, StatusBar } from "./components/chrome.js"
+import { Overlay, StatusBar } from "./components/chrome.js"
+import { Panel } from "@kud/ink-ui"
 import { BuildInfo } from "./components/build-info.js"
 import { BuildList } from "./components/build-list.js"
 import { JobList } from "./components/job-list.js"

@@ -19,4 +19,5 @@ export { windowSlice } from "./lib/window.js"
 // the required `onExit` callback, so a host (the CLI, a cockpit dashboard) mounts
 // it as one component and owns the terminal lifecycle itself.
 export { JenkinsBody, type JenkinsBodyProps } from "./jenkins-body.js"
-export { Panel, StatusBar, Overlay } from "./components/chrome.js"
+export { StatusBar, Overlay } from "./components/chrome.js"
+export { Panel } from "@kud/ink-ui"

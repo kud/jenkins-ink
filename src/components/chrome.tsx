@@ -1,43 +1,6 @@
 import { Box, Text } from "ink"
 import type { ReactNode } from "react"
 
-interface PanelProps {
-  title: string
-  color: string
-  focused: boolean
-  width?: number
-  height?: number
-  flexGrow?: number
-  children: ReactNode
-}
-
-// A bordered pane with a coloured title header. Border brightens and the title
-// gains a ● marker when focused — the Ink equivalent of blessed's active labels.
-export const Panel = ({
-  title,
-  color,
-  focused,
-  width,
-  height,
-  flexGrow,
-  children,
-}: PanelProps) => (
-  <Box
-    flexDirection="column"
-    width={width}
-    height={height}
-    flexGrow={flexGrow}
-    borderStyle="round"
-    borderColor={focused ? color : "gray"}
-    overflow="hidden"
-  >
-    <Text color={focused ? color : "gray"} bold>
-      {focused ? `${title} ●` : title}
-    </Text>
-    {children}
-  </Box>
-)
-
 // Full-width bottom bar: context on the left, state chips + hints on the right.
 export const StatusBar = ({
   left,
