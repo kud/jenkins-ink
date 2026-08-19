@@ -1,6 +1,6 @@
 {
   "name": "@kud/jenkins-ink",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Ink components for rendering Jenkins builds, jobs, stages and logs",
   "type": "module",
   "main": "dist/index.js",
