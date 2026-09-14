@@ -9,3 +9,7 @@ The TUI here is built with [`@kud/ink-ui`](https://github.com/kud/ink-ui), the h
 **Before writing or changing any UI component, read `node_modules/@kud/ink-ui/AGENTS.md`.** It ships with the package and carries what the type definitions cannot express: which components own their own Ink `useInput` versus which are presentational, what to compose for a given screen, and the known traps. The exhaustive component surface is `node_modules/@kud/ink-ui/dist/index.d.ts`.
 
 Never hand-roll a component without checking there first — bordered panes, scrolling viewports, selectable rows, tables, tab bars, spinners, progress bars and key-hint footers are all provided. Colour comes from the `colors` token object, never a string literal.
+
+## Keys the body does not own
+
+`JenkinsBody` never binds `q`, and never a back key of its own — the host mounts ink-ui's `useAppKeys` once and calls `onExit` from its own peel. The body binds `esc` only for the layers it pushes itself (overlays, confirms, text modes) and reports them through `onFocus({ layer, typing })` so the host can stand its keys down: `q` types during a text mode, and the host's back must not fire while the body is closing an overlay. See kud/ink-ui#5 for the fleet contract.

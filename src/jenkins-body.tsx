@@ -37,6 +37,13 @@ export interface JenkinsBodyProps {
   jobsFilter: string[] | null
   singleJobMode: boolean
   onExit: () => void
+  /**
+   * Fires as this body's own layers open and close, so the host's app keys
+   * can stand down: `typing` while a text mode is live (`q` is a letter),
+   * `layer` while an overlay or confirm is up (esc is the body's, not the
+   * host's back).
+   */
+  onFocus?: (state: { layer: boolean; typing: boolean }) => void
 }
 
 type Focus = "jobs" | "builds" | "logs"
@@ -114,6 +121,7 @@ export const JenkinsBody = ({
   jobsFilter,
   singleJobMode,
   onExit,
+  onFocus,
 }: JenkinsBodyProps) => {
   const { cols, rows } = useTermSize()
 
@@ -199,8 +207,20 @@ export const JenkinsBody = ({
   } | null>(null)
   const [tick, setTick] = useState(0) // manual/auto refresh trigger
 
+
   const jobLimitRef = useRef(jobSearchLimit)
   const abortRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    onFocus?.({
+      layer: overlay !== null || confirm !== null,
+      typing: mode !== null,
+    })
+  }, [overlay, confirm, mode, onFocus])
+
+  // The host unmounts this body when it quits or goes back; the in-flight log
+  // stream used to be aborted by the body's own `q`, which is no longer bound.
+  useEffect(() => () => abortRef.current?.abort(), [])
   const rawRef = useRef("")
   const preselectDone = useRef(false)
 
@@ -779,11 +799,11 @@ export const JenkinsBody = ({
   useInput((input, key) => {
     // ---- overlays ----
     if (overlay === "help") {
-      if (input === "?" || key.escape || input === "q") setOverlay(null)
+      if (input === "?" || key.escape) setOverlay(null)
       return
     }
     if (overlay === "artifacts") {
-      if (key.escape || input === "a" || input === "q") setOverlay(null)
+      if (key.escape || input === "a") setOverlay(null)
       else if (key.upArrow || input === "k")
         setArtifactSel((s) =>
           clamp(s - 1, 0, Math.max(0, artifacts.length - 1)),
@@ -796,7 +816,7 @@ export const JenkinsBody = ({
       return
     }
     if (overlay === "actions") {
-      if (key.escape || input === "q") setOverlay(null)
+      if (key.escape) setOverlay(null)
       else if (key.upArrow || input === "k")
         setActionSel((s) =>
           clamp(s - 1, 0, Math.max(0, actionItems.length - 1)),
@@ -810,7 +830,7 @@ export const JenkinsBody = ({
       return
     }
     if (overlay === "statusFilter") {
-      if (key.escape || key.return || input === "q" || input === "F")
+      if (key.escape || key.return || input === "F")
         setOverlay(null)
       else if (key.upArrow || input === "k")
         setStatusSel((s) => clamp(s - 1, 0, BUILD_STATUSES.length - 1))
@@ -830,7 +850,7 @@ export const JenkinsBody = ({
     if (overlay === "stages") {
       const stages = pipelineStages?.stages ?? []
       if (stageLevel === "stages") {
-        if (key.escape || input === "q") setOverlay(null)
+        if (key.escape) setOverlay(null)
         else if (key.upArrow || input === "k")
           setStageSel((s) => clamp(s - 1, 0, Math.max(0, stages.length - 1)))
         else if (key.downArrow || input === "j")
@@ -839,7 +859,6 @@ export const JenkinsBody = ({
           void openSteps(stages[stageSel])
       } else if (stageLevel === "steps") {
         if (key.escape) setStageLevel("stages")
-        else if (input === "q") setOverlay(null)
         else if (key.upArrow || input === "k")
           setStepSel((s) => clamp(s - 1, 0, Math.max(0, stageSteps.length - 1)))
         else if (key.downArrow || input === "j")
@@ -850,7 +869,6 @@ export const JenkinsBody = ({
         // log level
         const maxScroll = Math.max(0, stepLog.split("\n").length - (rows - 6))
         if (key.escape) setStageLevel("steps")
-        else if (input === "q") setOverlay(null)
         else if (key.upArrow || input === "k")
           setStepLogScroll((s) => clamp(s - 1, 0, maxScroll))
         else if (key.downArrow || input === "j")
@@ -903,11 +921,9 @@ export const JenkinsBody = ({
     }
 
     // ---- global keys ----
-    if (input === "q" || (key.ctrl && input === "c")) {
-      abortRef.current?.abort()
-      onExit()
-      return
-    }
+    // `q` is not bound here: quitting belongs to the host (ink-ui's
+    // `useAppKeys`), which calls `onExit` from its own peel. Esc closes only
+    // the layers this body pushes itself — overlays, confirms, text modes.
     if (input === "r") {
       void loadJobs()
       setTick((t) => t + 1)
