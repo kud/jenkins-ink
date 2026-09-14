@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ---
 
+## 0.5.0 — 2026-09-14
+
+### Highlights
+
+- **`JenkinsBody` no longer binds `q`.** Quitting belongs to the host, which mounts `@kud/ink-ui`'s `useAppKeys` and calls `onExit` from its own peel; overlays, confirms and text modes close on `esc` alone, never on `q`. The body reports its own layers through `onFocus({ layer, typing })` so the host can stand its keys down while a letter is a letter. A host on 0.4.x that relied on `q` closing the body must wire its peel before taking this. `@kud/ink-ui` pinned to 0.27.0. ([c95b6e7](https://github.com/kud/jenkins-ink/commit/c95b6e76afa9ef07f1704255e5720afdd88fe815))
+
+---
+
 ## 0.4.0 — 2026-08-19
 
 ### Fixes
