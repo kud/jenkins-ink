@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react"
 import { Box, Text, useInput, useStdout } from "ink"
 import chalk from "chalk"
 import { exec } from "node:child_process"
@@ -22,7 +29,7 @@ import {
   type LogLine,
 } from "./lib/log-format.js"
 import { Overlay, StatusBar } from "./components/chrome.js"
-import { Panel } from "@kud/ink-ui"
+import { FilterBar, Panel, useFilterMode } from "@kud/ink-ui"
 import { BuildInfo } from "./components/build-info.js"
 import { BuildList } from "./components/build-list.js"
 import { JobList } from "./components/job-list.js"
@@ -39,28 +46,18 @@ export interface JenkinsBodyProps {
   onExit: () => void
   /**
    * Fires as this body's own layers open and close, so the host's app keys
-   * can stand down: `typing` while a text mode is live (`q` is a letter),
-   * `layer` while an overlay or confirm is up (esc is the body's, not the
-   * host's back).
+   * can stand down: `typing` while a text mode or a list filter's field is
+   * live (`q` is a letter), `layer` while an overlay, a confirm or a kept list
+   * filter is up (esc is the body's, not the host's back — a kept filter is
+   * the bottom of the peel, cleared by `esc`).
    */
   onFocus?: (state: { layer: boolean; typing: boolean }) => void
 }
 
 type Focus = "jobs" | "builds" | "logs"
-type Mode =
-  | null
-  | "jobSearch"
-  | "buildFilter"
-  | "buildSearch"
-  | "logSearch"
-  | "jobLimit"
+type Mode = null | "logSearch" | "jobLimit"
 type OverlayKind =
-  | null
-  | "help"
-  | "artifacts"
-  | "actions"
-  | "statusFilter"
-  | "stages"
+  null | "help" | "artifacts" | "actions" | "statusFilter" | "stages"
 type StageLevel = "stages" | "steps" | "log"
 
 interface ActionItem {
@@ -113,6 +110,15 @@ const openInBrowser = (url: string) => {
   exec(`${opener} "${url}"`)
 }
 
+// ink-ui's FilterBar, held to one row: the panes are narrow, and a term long
+// enough to wrap would push the list's last row out of the frame.
+const ListFilterBar = (props: ComponentProps<typeof FilterBar>) =>
+  props.term === null ? null : (
+    <Box height={1} overflow="hidden">
+      <FilterBar {...props} />
+    </Box>
+  )
+
 export const JenkinsBody = ({
   client,
   jobSearchLimit,
@@ -155,12 +161,10 @@ export const JenkinsBody = ({
       : [],
   )
   const [jobSel, setJobSel] = useState(0)
-  const [jobQuery, setJobQuery] = useState("")
   const [foldersOnly, setFoldersOnly] = useState(false)
 
   const [builds, setBuilds] = useState<JenkinsBuild[]>([])
   const [buildSel, setBuildSel] = useState(0)
-  const [buildQuery, setBuildQuery] = useState("")
   // Multi-select status filter (all shown by default); builds always newest-first.
   const [statuses, setStatuses] = useState<Set<string>>(
     () => new Set(BUILD_STATUSES),
@@ -207,16 +211,44 @@ export const JenkinsBody = ({
   } | null>(null)
   const [tick, setTick] = useState(0) // manual/auto refresh trigger
 
-
   const jobLimitRef = useRef(jobSearchLimit)
   const abortRef = useRef<AbortController | null>(null)
 
+  // The two list filters, vim's way (ink-ui's `useFilterMode`): `/` types into
+  // the focused list's filter and it narrows live, `↵` keeps it and hands the
+  // letters back as hotkeys, `/` again edits it, `esc` clears it. Only the
+  // focused list's hook listens, so `/` on the logs pane stays the log search.
+  const filterKeysFree = overlay === null && confirm === null && mode === null
+  const resetJobSel = useCallback(() => setJobSel(0), [])
+  const resetBuildSel = useCallback(() => setBuildSel(0), [])
+  const jobFilter = useFilterMode({
+    isActive: filterKeysFree && focus === "jobs",
+    onChange: resetJobSel,
+  })
+  const buildFilter = useFilterMode({
+    isActive: filterKeysFree && focus === "builds",
+    onChange: resetBuildSel,
+  })
+  const filterTyping = jobFilter.typing || buildFilter.typing
+
   useEffect(() => {
     onFocus?.({
-      layer: overlay !== null || confirm !== null,
-      typing: mode !== null,
+      layer:
+        overlay !== null ||
+        confirm !== null ||
+        jobFilter.active ||
+        buildFilter.active,
+      typing: mode !== null || filterTyping,
     })
-  }, [overlay, confirm, mode, onFocus])
+  }, [
+    overlay,
+    confirm,
+    mode,
+    jobFilter.active,
+    buildFilter.active,
+    filterTyping,
+    onFocus,
+  ])
 
   // The host unmounts this body when it quits or goes back; the in-flight log
   // stream used to be aborted by the body's own `q`, which is no longer bound.
@@ -227,8 +259,8 @@ export const JenkinsBody = ({
   // ---- derived: filtered lists --------------------------------------------
   const filteredJobs = useMemo(() => {
     let list = jobs
-    if (jobQuery) {
-      const q = jobQuery.toLowerCase()
+    if (jobFilter.term) {
+      const q = jobFilter.term.toLowerCase()
       list = list.filter((j) =>
         (j.fullName || j.name || "").toLowerCase().includes(q),
       )
@@ -236,7 +268,7 @@ export const JenkinsBody = ({
     if (foldersOnly)
       list = list.filter((j) => (j.fullName || j.name || "").includes("/"))
     return list
-  }, [jobs, jobQuery, foldersOnly])
+  }, [jobs, jobFilter.term, foldersOnly])
 
   const filteredBuilds = useMemo(() => {
     // Always newest-first; filter by the selected status set (states outside the
@@ -249,12 +281,12 @@ export const JenkinsBody = ({
         statuses.has(state)
       )
     })
-    if (!buildQuery) return byStatus
-    const q = buildQuery.toLowerCase()
+    if (!buildFilter.term) return byStatus
+    const q = buildFilter.term.toLowerCase()
     return byStatus.filter((b) =>
       `#${b.number} ${buildState(b)}`.toLowerCase().includes(q),
     )
-  }, [builds, statuses, buildQuery])
+  }, [builds, statuses, buildFilter.term])
 
   const currentJob =
     singleJobMode && jobsFilter
@@ -673,8 +705,8 @@ export const JenkinsBody = ({
   }
 
   const clearFilters = () => {
-    setBuildQuery("")
-    setJobQuery("")
+    buildFilter.clear()
+    jobFilter.clear()
     setLogSearchApplied("")
     setLogMatches([])
     setLogMatchIdx(-1)
@@ -685,10 +717,7 @@ export const JenkinsBody = ({
 
   // ---- input dispatch ------------------------------------------------------
   const commitMode = () => {
-    if (mode === "jobSearch") setJobQuery(draft)
-    else if (mode === "buildFilter" || mode === "buildSearch")
-      setBuildQuery(draft)
-    else if (mode === "logSearch") {
+    if (mode === "logSearch") {
       setLogSearchApplied(draft)
       const m = findMatchingLines(logLines, draft)
       setLogMatches(m)
@@ -796,6 +825,17 @@ export const JenkinsBody = ({
     setStatus("Cancelled")
   }
 
+  const moveListSelection = (delta: number) => {
+    if (focus === "jobs")
+      setJobSel((s) =>
+        clamp(s + delta, 0, Math.max(0, filteredJobs.length - 1)),
+      )
+    else if (focus === "builds")
+      setBuildSel((s) =>
+        clamp(s + delta, 0, Math.max(0, filteredBuilds.length - 1)),
+      )
+  }
+
   useInput((input, key) => {
     // ---- overlays ----
     if (overlay === "help") {
@@ -830,8 +870,7 @@ export const JenkinsBody = ({
       return
     }
     if (overlay === "statusFilter") {
-      if (key.escape || key.return || input === "F")
-        setOverlay(null)
+      if (key.escape || key.return || input === "F") setOverlay(null)
       else if (key.upArrow || input === "k")
         setStatusSel((s) => clamp(s - 1, 0, BUILD_STATUSES.length - 1))
       else if (key.downArrow || input === "j")
@@ -901,6 +940,24 @@ export const JenkinsBody = ({
       return
     }
 
+    // ---- list filter ----
+    // While a filter's field is open its hook owns the letters, `↵` and `esc`;
+    // only ↑↓ still walk the matches, so `j`/`k` type instead of moving.
+    if (filterTyping) {
+      if (key.upArrow) moveListSelection(-1)
+      else if (key.downArrow) moveListSelection(1)
+      return
+    }
+    // A kept filter is the bottom of the peel: `esc` clears the focused list's
+    // first, then whichever other one is still standing.
+    if (key.escape) {
+      const focused =
+        focus === "jobs" ? jobFilter : focus === "builds" ? buildFilter : null
+      const kept = [focused, jobFilter, buildFilter].find((f) => f?.active)
+      kept?.clear()
+      return
+    }
+
     // ---- build actions ----
     // Enter opens the contextual action menu (unless a pane needs Enter itself).
     if (key.return && focus !== "logs") {
@@ -923,7 +980,8 @@ export const JenkinsBody = ({
     // ---- global keys ----
     // `q` is not bound here: quitting belongs to the host (ink-ui's
     // `useAppKeys`), which calls `onExit` from its own peel. Esc closes only
-    // the layers this body pushes itself — overlays, confirms, text modes.
+    // the layers this body pushes itself — overlays, confirms, text modes,
+    // kept list filters.
     if (input === "r") {
       void loadJobs()
       setTick((t) => t + 1)
@@ -972,16 +1030,6 @@ export const JenkinsBody = ({
       setFoldersOnly((v) => !v)
       return
     }
-    if (input === "b") {
-      setMode("buildFilter")
-      setDraft("")
-      return
-    }
-    if (input === "B") {
-      setMode("buildSearch")
-      setDraft("")
-      return
-    }
     if (input === "c") {
       clearFilters()
       return
@@ -990,9 +1038,13 @@ export const JenkinsBody = ({
       setOverlay("help")
       return
     }
+    // On the jobs and builds panes `/` belongs to that list's filter hook; on
+    // the logs pane it is a find-in-log, a search rather than a filter.
     if (input === "/") {
-      setMode(focus === "logs" ? "logSearch" : "jobSearch")
-      setDraft("")
+      if (focus === "logs") {
+        setMode("logSearch")
+        setDraft("")
+      }
       return
     }
     if (input === "w") {
@@ -1039,28 +1091,8 @@ export const JenkinsBody = ({
       if (key.pageDown) return scrollLog(logRows)
       return
     }
-    if (focus === "jobs") {
-      if (key.upArrow || input === "k")
-        return setJobSel((s) =>
-          clamp(s - 1, 0, Math.max(0, filteredJobs.length - 1)),
-        )
-      if (key.downArrow || input === "j")
-        return setJobSel((s) =>
-          clamp(s + 1, 0, Math.max(0, filteredJobs.length - 1)),
-        )
-      return
-    }
-    if (focus === "builds") {
-      if (key.upArrow || input === "k")
-        return setBuildSel((s) =>
-          clamp(s - 1, 0, Math.max(0, filteredBuilds.length - 1)),
-        )
-      if (key.downArrow || input === "j")
-        return setBuildSel((s) =>
-          clamp(s + 1, 0, Math.max(0, filteredBuilds.length - 1)),
-        )
-      return
-    }
+    if (key.upArrow || input === "k") return moveListSelection(-1)
+    if (key.downArrow || input === "j") return moveListSelection(1)
   })
 
   // ---- render helpers ------------------------------------------------------
@@ -1077,9 +1109,6 @@ export const JenkinsBody = ({
     }
     if (mode) {
       const labels: Record<Exclude<Mode, null>, string> = {
-        jobSearch: "Job search",
-        buildFilter: "Build filter",
-        buildSearch: "Build search",
         logSearch: "Log search",
         jobLimit: "Job limit (0=∞)",
       }
@@ -1112,13 +1141,25 @@ export const JenkinsBody = ({
     // Key hints: highlighted KEY + label, so it's obvious `?` reveals all keys.
     const hint = (key: string, label: string) =>
       `${chalk.bold.cyan(key)} ${chalk.gray(label)}`
-    const hints = [
-      hint("↵", "menu"),
-      hint("p", "stages"),
-      hint("r", "refresh"),
-      hint("?", "keys"),
-      hint("q", "quit"),
-    ].join(chalk.dim(" · "))
+    // While a filter's field is open its keys are the only ones that work, so
+    // they replace ours rather than sit beside them.
+    const focusedFilter =
+      focus === "jobs" ? jobFilter : focus === "builds" ? buildFilter : null
+    const filterHints = (focusedFilter?.active ? focusedFilter.hints : []).map(
+      ([key, label]) => hint(key, label),
+    )
+    const hints = (
+      filterTyping
+        ? filterHints
+        : [
+            ...filterHints,
+            hint("↵", "menu"),
+            hint("p", "stages"),
+            hint("r", "refresh"),
+            hint("?", "keys"),
+            hint("q", "quit"),
+          ]
+    ).join(chalk.dim(" · "))
     const right = `${chips}    ${hints}`
     return { left, right }
   })()
@@ -1169,8 +1210,7 @@ export const JenkinsBody = ({
         </Text>
         <Text>
           {row(
-            ["/", "search"],
-            ["b/B", "build filter"],
+            ["/", "filter list · find in log"],
             ["F", "status filter"],
             ["o", "folders"],
             ["c", "clear"],
@@ -1333,10 +1373,15 @@ export const JenkinsBody = ({
             width={jobsWidth}
             height={bodyHeight}
           >
+            <ListFilterBar
+              term={jobFilter.term}
+              typing={jobFilter.typing}
+              matches={filteredJobs.length}
+            />
             <JobList
               jobs={filteredJobs}
               selected={jobSel}
-              rows={listRows}
+              rows={listRows - (jobFilter.active ? 1 : 0)}
               emptyText="Loading jobs…"
             />
           </Panel>
@@ -1348,10 +1393,15 @@ export const JenkinsBody = ({
           width={buildsWidth}
           height={bodyHeight}
         >
+          <ListFilterBar
+            term={buildFilter.term}
+            typing={buildFilter.typing}
+            matches={filteredBuilds.length}
+          />
           <BuildList
             builds={filteredBuilds}
             selected={buildSel}
-            rows={listRows}
+            rows={listRows - (buildFilter.active ? 1 : 0)}
             emptyText="Select a job"
           />
         </Panel>
