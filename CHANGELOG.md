@@ -4,6 +4,18 @@ All notable changes to this project are documented here.
 
 ---
 
+## 0.6.0 — 2026-11-09
+
+### Highlights
+
+- **List filtering now works vim-style on the jobs and builds panes.** `/` filters live, `↵` keeps the filter, `esc` clears it; the old `b` and `B` build-filter keys are gone, and `onFocus` reports a kept filter as a layer. `@kud/ink-ui` moves to 0.31.0. ([f76ff11](https://github.com/kud/jenkins-ink/commit/f76ff11cf2b66dfb59626b2dfcfff1ebbab571ca))
+
+### Fixes
+
+- **`@kud/jenkins` is now a peer dependency (`^2.2.0`).** The host installs the one core copy and `JenkinsBody` uses it, so a core minor release no longer needs a jenkins-ink release, and hosts stop hitting the duplicate `JenkinsClient` type error that 0.4.0 also fixed. A host must have `@kud/jenkins` 2.2.0 or later installed; npm 7+ adds it automatically. ([08f04af](https://github.com/kud/jenkins-ink/commit/08f04af63c997af59ca213ac8b1f46990dcd3884))
+
+---
+
 ## 0.5.0 — 2026-09-14
 
 ### Highlights
