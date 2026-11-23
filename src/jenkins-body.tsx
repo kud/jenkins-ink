@@ -6,7 +6,7 @@ import {
   useState,
   type ComponentProps,
 } from "react"
-import { Box, Text, useInput, useStdout } from "ink"
+import { Box, Text, useInput, useWindowSize } from "ink"
 import chalk from "chalk"
 import { exec } from "node:child_process"
 import { writeFileSync } from "node:fs"
@@ -84,20 +84,8 @@ const buildState = (b: JenkinsBuild) =>
   b.building ? "RUNNING" : b.result || "UNKNOWN"
 
 const useTermSize = () => {
-  const { stdout } = useStdout()
-  const [size, setSize] = useState({
-    cols: stdout.columns || 80,
-    rows: stdout.rows || 24,
-  })
-  useEffect(() => {
-    const onResize = () =>
-      setSize({ cols: stdout.columns || 80, rows: stdout.rows || 24 })
-    stdout.on("resize", onResize)
-    return () => {
-      stdout.off("resize", onResize)
-    }
-  }, [stdout])
-  return size
+  const { columns, rows } = useWindowSize()
+  return { cols: columns || 80, rows: rows || 24 }
 }
 
 const openInBrowser = (url: string) => {
